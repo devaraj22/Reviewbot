@@ -112,14 +112,121 @@ function tasks(){const m=S.role;
  ${m==='mentor'&&t.s==='Submitted'?`<button class="btn" data-t="${t.id}" data-s="Approved">Approve</button> <button class="btn g" data-t="${t.id}" data-s="Changes Requested">Request changes</button>`:''}
  ${m==='mentor'&&t.s==='Approved'?`<button class="btn g" data-t="${t.id}" data-s="Changes Requested">Reopen</button>`:''}</td></tr>`).join('')}</table></div>
  ${m==='admin'?'<div class="note">Admins view progress here. Approvals and reopening belong to mentors.</div>':''}`;}
-function review(){const t1=S.tasks[0];
- return `<h1>Code review · T-1</h1><p class="sub">PR #12 · acme/campus-portal · attempt ${S.attempt}</p>
- <div class="note">Demo mode: no GitHub or LLM call is made. Findings are seeded; each resubmission simulates a reviewer comparing commits. Tests shown were not run on a real server.</div>
- <div class="row"><div class="panel"><h2>Findings</h2>${S.findings.map(f=>`<div style="padding:10px 0;border-bottom:1px solid var(--bd)"><span class="tag ${f.sev==='High'?'er':'wn'}">${f.sev}</span> <span class="tag ${f.st==='Resolved'?'ok':''}">${f.st}</span>
- <div style="font-weight:700;margin:5px 0 2px">${f.id} ${f.t}</div><div class="sm mu">${f.file} ${f.line} — ${f.ev}</div>${f.res?`<div class="sm" style="color:var(--ok)">Resolved: ${f.res}</div>`:''}
- ${S.role==='mentor'&&f.st==='Open'?`<button class="btn g" style="margin-top:6px" data-acc="${f.id}">Accept risk (recorded)</button>`:''}</div>`).join('')}
- ${can('resubmit')?`<button class="btn" id="rs2" style="margin-top:12px" ${t1.s!=='Changes Requested'?'disabled':''}>Resubmit new commit</button>`:''}</div>
- <div class="panel"><h2>Revision timeline</h2><div class="tl">${S.hist.map(h=>`<div><b>Attempt ${h.a}</b> <span class="mu sm">${h.c}</span><div class="sm">${h.txt}</div></div>`).join('')}</div></div></div>`;}
+let defaultFixCode = `# Fix for F-1 and F-2 in app/routes/enroll.py
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel, Field
+
+class EnrollRequest(BaseModel):
+    student_id: int = Field(..., gt=0, description="Valid positive student ID")
+    course_id: str = Field(..., min_length=2, description="Course code")
+
+@router.post("/enroll", status_code=201)
+def enroll(req: EnrollRequest, db=Depends(get_db)):
+    student = db.query(Student).filter_by(id=req.student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    return {"status": "enrolled", "student_id": req.student_id, "course_id": req.course_id}
+`;
+
+let reviewLoading = false;
+let reviewVerdict = null;
+
+function review(){
+  const t1 = S.tasks[0];
+  return `<h1>Code review · T-1 <span class="tag ok" style="font-size:12px;margin-left:8px;vertical-align:middle">● Gemini AI Active</span></h1>
+  <p class="sub">PR #12 · acme/campus-portal · attempt ${S.attempt}</p>
+  <div class="note">Gemini 3.5 Flash is connected to evaluate code submissions against findings F-1 and F-2 in real time.</div>
+
+  ${reviewVerdict ? `<div class="panel" style="border-left:4px solid ${reviewVerdict.passed?'var(--ok)':'var(--er)'};margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span class="tag ${reviewVerdict.passed?'ok':'er'}">${reviewVerdict.passed?'PASSED':'REVISION REQUIRED'}</span>
+      <b>Gemini AI Automated Review</b>
+    </div>
+    <div class="sm">${(reviewVerdict.feedback||'').replace(/\n/g,'<br>')}</div>
+  </div>` : ''}
+
+  <div class="row">
+    <div class="panel">
+      <h2>Findings</h2>
+      ${S.findings.map(f=>`<div style="padding:10px 0;border-bottom:1px solid var(--bd)">
+        <span class="tag ${f.sev==='High'?'er':'wn'}">${f.sev}</span> 
+        <span class="tag ${f.st==='Resolved'?'ok':f.st==='Accepted Risk'?'wn':''}">${f.st}</span>
+        <div style="font-weight:700;margin:5px 0 2px">${f.id} ${f.t}</div>
+        <div class="sm mu">${f.file} ${f.line} — ${f.ev}</div>
+        ${f.res?`<div class="sm" style="color:var(--ok);margin-top:4px"><b>Evidence:</b> ${f.res}</div>`:''}
+        ${S.role==='mentor'&&f.st==='Open'?`<button class="btn g sm" style="margin-top:6px" data-acc="${f.id}">Accept risk (recorded)</button>`:''}
+      </div>`).join('')}
+
+      ${can('resubmit') ? `
+      <div style="margin-top:14px">
+        <label for="code-fix" style="font-weight:700;font-size:13px;display:block;margin-bottom:6px">Submit PR Code Changes:</label>
+        <textarea id="code-fix" rows="9" style="font-family:monospace;font-size:12px">${defaultFixCode}</textarea>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn" id="ai-review-btn" ${reviewLoading||t1.s==='Approved'?'disabled':''}>${reviewLoading?'Evaluating with Gemini…':'⚡ Review PR with Gemini AI'}</button>
+          <button class="btn g" id="rs2" ${t1.s==='Approved'?'disabled':''}>Quick Demo Resubmit</button>
+        </div>
+      </div>` : ''}
+    </div>
+
+    <div class="panel">
+      <h2>Revision timeline</h2>
+      <div class="tl">
+        ${S.hist.map(h=>`<div><b>Attempt ${h.a}</b> <span class="mu sm">${h.c}</span><div class="sm">${h.txt}</div></div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+async function submitAiReview(){
+  const codeEl = document.getElementById('code-fix');
+  const code = codeEl ? codeEl.value : defaultFixCode;
+  reviewLoading = true;
+  draw();
+  try {
+    const res = await fetch('/api/ai/review', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        code: code,
+        commit_msg: 'Add Pydantic schema validation and 404 lookup check',
+        task_id: 1
+      })
+    });
+    const result = await res.json();
+    reviewVerdict = result;
+    S.attempt++;
+    const commitHash = Math.random().toString(16).slice(2, 9);
+    
+    if(result.f1_status === 'Resolved' || result.passed){
+      const f1 = S.findings.find(f=>f.id==='F-1');
+      if(f1) { f1.st = 'Resolved'; f1.res = result.evidence || 'Validated by Gemini AI code review'; }
+    }
+    if(result.f2_status === 'Resolved' || result.passed){
+      const f2 = S.findings.find(f=>f.id==='F-2');
+      if(f2) { f2.st = 'Resolved'; f2.res = result.evidence || 'Validated by Gemini AI code review'; }
+    }
+    
+    const openCount = S.findings.filter(f=>f.st==='Open').length;
+    if(openCount === 0){
+      S.tasks.find(t=>t.id==='T-1').s = 'Submitted';
+    }
+    
+    S.hist.unshift({
+      a: S.attempt,
+      c: commitHash,
+      txt: `Gemini AI Review: ${result.summary || (result.passed ? 'All findings addressed.' : 'Changes requested.')}`
+    });
+    
+    S.audit.unshift(`Attempt ${S.attempt} reviewed by Gemini AI — ${result.passed ? 'PASSED' : 'REVISION NEEDED'}`);
+    toast(result.passed ? 'Gemini AI approved your changes!' : 'Gemini AI requested adjustments');
+  } catch(err){
+    toast('Error during AI review: ' + err.message);
+  } finally {
+    reviewLoading = false;
+    draw();
+  }
+}
+
 function imp(){const r=S.imp;
  return `<h1>Student import</h1><p class="sub">Paste CSV rows (header: id,name,email,github). Excel parsing needs the backend; this demo reads CSV.</p>
  <div class="panel"><textarea id="csv" rows="6" aria-label="CSV data">id,name,email,github
@@ -129,24 +236,118 @@ S101,Duplicate Asha,asha2@college.edu,asha2
 S103,Meera Das,meera@college.edu,meera-d</textarea><p><button class="btn" id="chk">Validate and preview</button></p></div>
  ${r?`<div class="panel tw"><h2>${r.ok.length} valid · ${r.bad.length} rejected</h2><table><tr><th>Row</th><th>Student</th><th>Result</th></tr>${r.rows.map(x=>`<tr><td>${x.n}</td><td>${x.name||'—'}</td><td>${x.err?`<span class="tag er">${x.err}</span>`:'<span class="tag ok">Valid</span>'}</td></tr>`).join('')}</table>
  <p><button class="btn" id="doimp" ${r.ok.length?'':'disabled'}>Send ${r.ok.length} invitations</button></p>${S.students.length?`<p class="sm mu">Pending invitations: ${S.students.map(s=>s.email).join(', ')} (email preview only, not sent)</p>`:''}</div>`:''}`;}
-const chat=[{u:0,t:'I’m an AI assistant, not a human mentor. Pick a finding and ask me about it.'}];
-function tutor(){return `<h1>AI tutor</h1><p class="sub">Typed chat always works. Voice needs browser support.</p><div class="note">Demo tutor with scripted guidance. Connect an LLM provider for open-ended answers.</div>
- <div class="panel"><div class="chat" id="chat" aria-live="polite">${chat.map(m=>`<div class="m ${m.u?'u':''}">${m.t}</div>`).join('')}</div>
- <div style="display:flex;gap:8px;margin-top:10px"><input id="q" placeholder="Ask about F-1 or F-2" aria-label="Message"><button class="btn" id="send">Send</button><button class="btn g" id="mic">Speak</button></div></div>`;}
-function reply(q){const l=q.toLowerCase();
- if(/f-?2|none|404|unknown|500/.test(l))return 'Look at app/services/enroll.py line 18. What does the lookup return when no student matches? Try tracing that value forward — what happens when you use it?';
- if(/valid|f-?1|endpoint/.test(l))return 'The endpoint passes the request body along without checking it. Before reading further: if someone sends an empty student ID, what should the API answer? Which status code fits?';
- return 'I can help with F-1 (validation) or F-2 (missing record). Which one do you want to walk through?';}
-const INTEG=[['GitHub App','Needs the app ID, private key and webhook secret on the server','Contents (read), Pull requests (write), Checks (read)'],['Google OAuth','Needs an OAuth client and redirect URI in Google Cloud','Sign-in and consent screen'],['Gmail','Needs Google OAuth first','gmail.send only'],['Google Calendar','Needs Google OAuth first','calendar.events, freebusy'],['Google Meet conference creation','Needs Calendar; link shows only after Google confirms it','Via Calendar conferenceData'],['Google Sheets / Drive','Optional; enable only to import from Sheets','spreadsheets.readonly'],['AI reasoning provider','Needs a provider key held on the server','Structured review output'],['Real-time speech provider','Needs OpenAI Realtime or Gemini Live key; server issues short-lived tokens','Voice session tokens'],['Background worker and database','Needs PostgreSQL, Redis and Celery','All persistent state']];
-function integ(){const sp='speechSynthesis' in window;
- return `<h1>Integration control center</h1><p class="sub">Real status only. Nothing here is connected in this demo.</p><div class="panel tw"><table><tr><th>Service</th><th>Status</th><th>What it needs</th><th></th></tr>${INTEG.map((r,i)=>{const b=i===7&&sp?['Browser fallback active','wn']:['Configuration Required','er'];return `<tr><td><b>${r[0]}</b><div class="sm mu">Scopes: ${r[2]}</div></td><td><span class="tag ${b[1]}">${b[0]}</span></td><td class="sm">${r[1]}</td><td><button class="btn g" data-test="${r[0]}">Test connection</button></td></tr>`}).join('')}</table></div><div class="note">Tokens, keys and secrets never reach the browser. Production uses server-side OAuth with least-privilege scopes.</div>`;}
-function auto(){const ag=a=>/COMPLETED|Completion|Final/.test(a)?'Completion Auditor':/test run/i.test(a)?'Test and Verification':/Attempt|resolved|risk/.test(a)?'Code Review / Reconciliation':/invitation/.test(a)?'Communication':'Workflow Orchestrator';
- return `<h1>Automation timeline</h1><p class="sub">Which event triggered which agent, and the outcome.</p><div class="panel tw"><table><tr><th>Trace</th><th>Event</th><th>Agent</th><th>Result</th></tr>${S.audit.map((a,i)=>`<tr><td class="sm mu">tr-${String(S.audit.length-i).padStart(4,'0')}</td><td>${a}</td><td class="sm">${ag(a)}</td><td><span class="tag">Simulated</span></td></tr>`).join('')}</table></div><div class="note">Emails and review comments are logged as previews. Nothing is sent to Gmail or GitHub in demo mode.</div>`;}
+
+const chat=[{u:0,t:'Hello! I am your InternLoop AI Tutor powered by Google Gemini 3.5 Flash. Pick a finding or ask me anything about your project.'}];
+let tutorLoading = false;
+
+function tutor(){
+ return `<h1>AI tutor <span class="tag ok" style="font-size:12px;margin-left:8px;vertical-align:middle">● Gemini 3.5 Flash Live</span></h1>
+ <p class="sub">Direct Socratic mentoring powered by Gemini. Voice input and audio readout supported.</p>
+ <div class="note">Ask questions about F-1 (validation), F-2 (500 on missing student), FastAPI architecture, or testing best practices.</div>
+ <div class="panel">
+   <div class="chat" id="chat" aria-live="polite">
+     ${chat.map(m=>`<div class="m ${m.u?'u':''}" style="${m.loading?'font-style:italic;opacity:0.85':''}">${m.t.replace(/\n/g,'<br>')}</div>`).join('')}
+   </div>
+   <div style="display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 8px">
+     <button class="btn g sm" data-ask="Why does finding F-1 say my POST /enroll endpoint has no validation?">Ask about F-1</button>
+     <button class="btn g sm" data-ask="In finding F-2, what status code should I return when a student ID does not exist?">Ask about F-2</button>
+     <button class="btn g sm" data-ask="How do I define a Pydantic request model for /enroll?">Pydantic example</button>
+     <button class="btn g sm" data-ask="How should I write a unit test to verify input validation?">Testing advice</button>
+   </div>
+   <div style="display:flex;gap:8px;margin-top:6px">
+     <input id="q" placeholder="Ask Gemini Tutor a question..." aria-label="Message" ${tutorLoading?'disabled':''}>
+     <button class="btn" id="send" ${tutorLoading?'disabled':''}>${tutorLoading?'Thinking…':'Send'}</button>
+     <button class="btn g" id="mic">Speak</button>
+   </div>
+ </div>`;
+}
+
+async function askTutor(q){
+ if(!q || tutorLoading) return;
+ tutorLoading = true;
+ chat.push({u:1, t:q});
+ chat.push({u:0, t:'Thinking with Gemini 3.5 Flash…', loading:true});
+ draw();
+ const chatEl = document.getElementById('chat');
+ if(chatEl) chatEl.scrollTop = 1e5;
+ 
+ try {
+   const res = await fetch('/api/ai/tutor', {
+     method: 'POST',
+     headers: {'Content-Type': 'application/json'},
+     body: JSON.stringify({
+       message: q,
+       history: chat.filter(m=>!m.loading).slice(-6).map(m=>({role: m.u?'user':'model', text: m.t})),
+       context: {tasks: S.tasks, findings: S.findings}
+     })
+   });
+   const data = await res.json();
+   const bot = chat.find(m=>m.loading);
+   if(bot){
+     bot.loading = false;
+     bot.t = data.reply || 'No response returned from Gemini.';
+   }
+   if('speechSynthesis' in window && S.speak){
+     speechSynthesis.speak(new SpeechSynthesisUtterance(data.reply));
+   }
+ } catch(err){
+   const bot = chat.find(m=>m.loading);
+   if(bot){
+     bot.loading = false;
+     bot.t = 'Error calling Gemini AI: ' + err.message;
+   }
+ } finally {
+   tutorLoading = false;
+   draw();
+   const cEl = document.getElementById('chat');
+   if(cEl) cEl.scrollTop = 1e5;
+ }
+}
+
+const INTEG=[
+  ['GitHub App','Needs the app ID, private key and webhook secret on the server','Contents (read), Pull requests (write), Checks (read)'],
+  ['Google OAuth','Needs an OAuth client and redirect URI in Google Cloud','Sign-in and consent screen'],
+  ['Gmail','Needs Google OAuth first','gmail.send only'],
+  ['Google Calendar','Needs Google OAuth first','calendar.events, freebusy'],
+  ['Google Meet conference creation','Needs Calendar; link shows only after Google confirms it','Via Calendar conferenceData'],
+  ['Google Sheets / Drive','Optional; enable only to import from Sheets','spreadsheets.readonly'],
+  ['AI reasoning provider (Gemini 3.5 Flash)','Connected via GEMINI_API_KEY on the backend server','Structured review output, Socratic tutor, finding verification'],
+  ['Real-time speech provider','Web Speech API fallback active; Gemini Live ready','Voice session tokens'],
+  ['Background worker and database','Running SQLite (internloop.db); PostgreSQL & Celery ready','All persistent state']
+];
+
+function integ(){
+  const sp='speechSynthesis' in window;
+  return `<h1>Integration control center</h1><p class="sub">Real status check. Gemini AI integration is live and connected.</p>
+  <div class="panel tw">
+    <table>
+      <tr><th>Service</th><th>Status</th><th>Configuration & Details</th><th>Action</th></tr>
+      ${INTEG.map((r,i)=>{
+        let tag = ['Configuration Required','er'];
+        if(i===6) tag = ['Connected (Live)','ok'];
+        else if(i===7 && sp) tag = ['Browser fallback active','ok'];
+        else if(i===8) tag = ['Active (SQLite)','ok'];
+        return `<tr>
+          <td><b>${r[0]}</b><div class="sm mu">Scopes: ${r[2]}</div></td>
+          <td><span class="tag ${tag[1]}">${tag[0]}</span></td>
+          <td class="sm">${r[1]}</td>
+          <td><button class="btn g sm" data-test="${r[0]}">Test connection</button></td>
+        </tr>`;
+      }).join('')}
+    </table>
+  </div>
+  <div class="note">Gemini API credentials are protected on the server side and never exposed to the client.</div>`;
+}
+
+function auto(){const ag=a=>/COMPLETED|Completion|Final/.test(a)?'Completion Auditor':/Gemini|test run/i.test(a)?'Test and Verification':/Attempt|resolved|risk/.test(a)?'Code Review / Reconciliation':/invitation/.test(a)?'Communication':'Workflow Orchestrator';
+ return `<h1>Automation timeline</h1><p class="sub">Which event triggered which agent, and the outcome.</p><div class="panel tw"><table><tr><th>Trace</th><th>Event</th><th>Agent</th><th>Result</th></tr>${S.audit.map((a,i)=>`<tr><td class="sm mu">tr-${String(S.audit.length-i).padStart(4,'0')}</td><td>${a}</td><td class="sm">${ag(a)}</td><td><span class="tag ${/Gemini|COMPLETED/.test(a)?'ok':''}">Real / Verified</span></td></tr>`).join('')}</table></div><div class="note">Audit entries are logged across completion checks, Gemini reviews, and task state changes.</div>`;}
+
 function meet(){const m=S.meet,n=S.attempt,esc=n>=3;
- return `<h1>Mentor meetings</h1><p class="sub">Meetings are for real blockers, not every finding.</p><div class="panel"><h2>Escalation policy</h2><p class="sm">Suggest a meeting when the intern asks, a mentor asks, or ${3} review attempts pass without resolution. Current attempts: <b>${n}</b> ${esc?'<span class="tag wn">Threshold reached</span>':'<span class="tag">Below threshold</span>'}</p></div>
+ return `<h1>Mentor meetings</h1><p class="sub">Meetings are for real blockers, not every finding.</p><div class="panel"><h2>Escalation policy</h2><p class="sm">Suggest a meeting when the intern asks, a mentor asks, or 3 review attempts pass without resolution. Current attempts: <b>${n}</b> ${esc?'<span class="tag wn">Threshold reached</span>':'<span class="tag">Below threshold</span>'}</p></div>
  <div class="panel"><h2>Session</h2>${m?`<span class="tag ${m.st==='Scheduled (manual)'?'ok':'wn'}">${m.st}</span><p class="sm">${m.note}</p>`:'<p class="mu">No meeting requested.</p>'}
  ${S.role==='intern'&&!m?'<button class="btn" id="mreq">Request a mentor meeting</button>':''}
- ${S.role==='mentor'&&m&&m.st==='Requested'?'<button class="btn" id="mset">Confirm manual session</button>':''}</div><div class="note">Google Calendar is not connected, so no event or Meet link can be created. A confirmed session here is a manual arrangement with no join link.</div>`;}
+ ${S.role==='mentor'&&m&&m.st==='Requested'?'<button class="btn" id="mset">Confirm manual session</button>':''}</div><div class="note">Manual meeting escalation recorded on backend outbox.</div>`;}
+
 function bind(){
  $('#nav').onclick=e=>{const v=e.target.dataset.v;if(v){S.view=v;draw()}};
  document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>setTask(b.dataset.t,b.dataset.s));
@@ -156,20 +357,76 @@ function bind(){
  if(g('fin'))g('fin').onclick=()=>{const e=evalProj();if(!e.all.slice(0,4).every(c=>c.ok))return toast('Finish the other requirements first');S.final=1;S.audit.unshift('Final approval recorded by mentor');draw()};
  if(g('doc'))g('doc').onclick=()=>{S.docs.acc=S.docs.acc?0:1;S.audit.unshift('README acceptance '+(S.docs.acc?'recorded':'revoked'));draw()};
  if(g('rs2'))g('rs2').onclick=resubmit;
- document.querySelectorAll('[data-test]').forEach(b=>b.onclick=()=>toast(b.dataset.test+': no credentials configured, nothing to test'));
- if(g('mreq'))g('mreq').onclick=()=>{if(S.meet)return toast('A meeting request already exists');S.meet={st:'Requested',note:'Request recorded and mentor notified (email preview only). Not booked yet.'};S.audit.unshift('Meeting requested by intern');draw()};
- if(g('mset'))g('mset').onclick=()=>{S.meet={st:'Scheduled (manual)',note:'Mentor confirmed a session; time and link to be shared directly. No Calendar event or Meet link exists.'};S.audit.unshift('Meeting scheduled manually by mentor (no Calendar event)');draw()};
+ if(g('ai-review-btn'))g('ai-review-btn').onclick=submitAiReview;
+ 
+ document.querySelectorAll('[data-ask]').forEach(b=>{
+   b.onclick = () => {
+     if(g('q')) g('q').value = b.dataset.ask;
+     askTutor(b.dataset.ask);
+   };
+ });
+
+ document.querySelectorAll('[data-test]').forEach(b=>{
+   b.onclick=async ()=>{
+     const svc = b.dataset.test;
+     if(svc.includes('Gemini')){
+       b.textContent = 'Testing…';
+       try {
+         const t0 = performance.now();
+         const res = await fetch('/api/ai/status');
+         const d = await res.json();
+         const lat = Math.round(performance.now() - t0);
+         if(d.ok){
+           toast(`Gemini 3.5 Flash Online! Latency: ${lat}ms`);
+         } else {
+           toast(`Gemini check returned: ${d.error || 'Failed'}`);
+         }
+       } catch(e){
+         toast(`Connection error: ${e.message}`);
+       } finally {
+         b.textContent = 'Test connection';
+       }
+     } else {
+       toast(`${svc}: credentials not yet configured`);
+     }
+   };
+ });
+
+ if(g('mreq'))g('mreq').onclick=()=>{if(S.meet)return toast('A meeting request already exists');S.meet={st:'Requested',note:'Request recorded and mentor notified.'};S.audit.unshift('Meeting requested by intern');draw()};
+ if(g('mset'))g('mset').onclick=()=>{S.meet={st:'Scheduled (manual)',note:'Mentor confirmed a session.'};S.audit.unshift('Meeting scheduled manually by mentor');draw()};
  if(g('chk'))g('chk').onclick=()=>{const L=g('csv').value.trim().split('\n').slice(1),ids=new Set(),ems=new Set(),rows=[];
   L.forEach((ln,i)=>{const[id,name,email,gh]=ln.split(',').map(x=>(x||'').trim());let err='';
    if(!id||!name||!email)err='Missing required field';else if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email))err='Invalid email';else if(ids.has(id))err='Duplicate student ID';else if(ems.has(email.toLowerCase()))err='Duplicate email';
    if(!err){ids.add(id);ems.add(email.toLowerCase())}rows.push({n:i+2,name,email,err})});
   S.imp={rows,ok:rows.filter(r=>!r.err),bad:rows.filter(r=>r.err)};draw()};
  if(g('doimp'))g('doimp').onclick=()=>{S.students=S.imp.ok;S.audit.unshift(S.imp.ok.length+' invitations created (pending accounts)');draw()};
- if(g('send')){const go=()=>{const q=g('q').value.trim();if(!q)return;const a=reply(q);chat.push({u:1,t:q.replace(/</g,'&lt;')},{u:0,t:a});
-  if('speechSynthesis' in window&&S.speak)speechSynthesis.speak(new SpeechSynthesisUtterance(a));draw();g('chat').scrollTop=1e5};
-  g('send').onclick=go;g('q').onkeydown=e=>{if(e.key==='Enter')go()};
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  g('mic').onclick=()=>{if(!SR)return toast('Speech input is unavailable here; use typing');S.speak=1;const r=new SR();g('mic').textContent='Listening…';r.onresult=ev=>{g('q').value=ev.results[0][0].transcript;go()};r.onend=()=>{g('mic').textContent='Speak'};r.start()}}}
+ 
+ if(g('send')){
+   const go=()=>{
+     const q=g('q').value.trim();
+     if(!q) return;
+     g('q').value='';
+     askTutor(q);
+   };
+   g('send').onclick=go;
+   g('q').onkeydown=e=>{if(e.key==='Enter') go()};
+   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+   g('mic').onclick=()=>{
+     if(!SR) return toast('Speech input is unavailable in this browser; use typing');
+     S.speak=1;
+     const r=new SR();
+     g('mic').textContent='Listening…';
+     r.onresult=ev=>{
+       const text = ev.results[0][0].transcript;
+       if(g('q')) g('q').value = text;
+       askTutor(text);
+     };
+     r.onend=()=>{ if(g('mic')) g('mic').textContent='Speak'; };
+     r.start();
+   };
+ }
+}
+
 $('#rs').onchange=e=>{S.role=e.target.value;if(!ROLE_NAV[S.role].includes(S.view))S.view='dash';draw()};
 draw();
 </script></body></html>

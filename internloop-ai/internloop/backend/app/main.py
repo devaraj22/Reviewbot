@@ -1,10 +1,19 @@
 import os, hmac, hashlib, time, re, csv, io
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env file
+for p in [Path(__file__).resolve().parents[1] / ".env", Path(__file__).resolve().parents[2] / ".env"]:
+    if p.exists():
+        load_dotenv(p)
+        break
+
 from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from .models import *
 from .completion import evaluate, apply_completion
+from .gemini import test_connection as gemini_test_conn, tutor_chat as gemini_tutor, review_code as gemini_review
 
 SECRET = os.getenv("SECRET_KEY", "dev-only-change-me").encode()
 DEMO = os.getenv("DEMO_MODE", "false").lower() == "true"
@@ -39,6 +48,8 @@ class Login(BaseModel): email: str; password: str
 class Move(BaseModel): to: str
 class Text(BaseModel): text: str
 class TestIn(BaseModel): name: str; passed: bool
+class TutorIn(BaseModel): message: str; history: list = []; context: dict | None = None
+class ReviewIn(BaseModel): code: str; commit_msg: str = "Update implementation"; task_id: int | None = None
 
 @app.get("/api/health")
 def health(): return {"ok": True}
@@ -135,6 +146,28 @@ def validate(b: Text, u=Depends(user), db=Depends(get_db)):
 @app.get("/api/outbox")
 def outbox(u=Depends(user), db=Depends(get_db)):
     need(u, "admin"); return [{"key": o.key, "kind": o.kind, "to": o.recipient_role, "status": o.status} for o in db.query(Outbox)]
+
+@app.get("/api/ai/status")
+def ai_status():
+    return gemini_test_conn()
+
+@app.post("/api/ai/tutor")
+def ai_tutor(b: TutorIn):
+    try:
+        reply = gemini_tutor(b.message, b.history, b.context)
+        return {"reply": reply, "model": "gemini-3.5-flash-lite"}
+    except Exception as e:
+        raise HTTPException(500, f"AI Tutor error: {str(e)}")
+
+@app.post("/api/ai/review")
+def ai_review(b: ReviewIn, db=Depends(get_db)):
+    try:
+        result = gemini_review(b.code, b.commit_msg)
+        db.add(Audit(msg=f"Gemini AI Review: {result.get('summary', 'Code reviewed')} (passed={result.get('passed', False)})"))
+        db.commit()
+        return result
+    except Exception as e:
+        raise HTTPException(500, f"AI Review error: {str(e)}")
 
 FE = Path(__file__).resolve().parents[2] / "frontend"
 if FE.exists(): app.mount("/", StaticFiles(directory=FE, html=True), name="fe")
