@@ -1,0 +1,12 @@
+services:
+  db:
+    image: postgres:16
+    environment: { POSTGRES_PASSWORD: dev-only, POSTGRES_DB: internloop }
+  app:
+    build: { context: ., dockerfile: backend/Dockerfile }
+    environment:
+      DATABASE_URL: postgresql://postgres:dev-only@db/internloop
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY}
+      DEMO_MODE: "true"
+    ports: ["8000:8000"]
+    depends_on: [db]

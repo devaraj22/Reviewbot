@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>InternLoop AI</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
+<style>
+:root{--bg:#f5f8fe;--sf:#fff;--tx:#14213d;--mu:#5d6b88;--bd:#dde5f4;--bl:#2457e6;--bl2:#e8effd;--ok:#12805c;--okb:#e3f5ee;--wn:#a15c07;--wnb:#fdf1dc;--er:#b42318;--erb:#fde8e6;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0e1424;--sf:#162039;--tx:#e8eefc;--mu:#93a3c4;--bd:#26335a;--bl:#6c93ff;--bl2:#1d2c55;--ok:#4ed1a0;--okb:#103a2e;--wn:#f2b45a;--wnb:#3a2c10;--er:#ff8f85;--erb:#44201d}}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;font-family:Manrope,system-ui,sans-serif;background:var(--bg);color:var(--tx);font-size:14.5px;line-height:1.5}
+button{font:inherit;cursor:pointer}:focus-visible{outline:2px solid var(--bl);outline-offset:2px}
+.app{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+aside{background:var(--sf);border-right:1px solid var(--bd);padding:20px 14px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:6px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px;margin:0 6px 14px}
+.logo i{width:30px;height:30px;border-radius:9px;background:var(--bl);display:grid;place-items:center;color:#fff;font-style:normal;font-size:15px}
+nav button{display:block;width:100%;text-align:left;border:0;background:none;color:var(--mu);padding:9px 12px;border-radius:8px;font-weight:600;transition:background .15s,color .15s}
+nav button:hover{background:var(--bl2);color:var(--tx)}nav button.on{background:var(--bl2);color:var(--bl)}
+.role{margin-top:auto;font-size:12.5px;color:var(--mu)}
+select,input,textarea{font:inherit;color:var(--tx);background:var(--sf);border:1px solid var(--bd);border-radius:8px;padding:8px 10px;width:100%}
+main{padding:28px 34px;max-width:1080px;width:100%}
+h1{font-size:23px;margin:0 0 4px;letter-spacing:-.01em}h2{font-size:15.5px;margin:0 0 10px}
+.sub{color:var(--mu);margin:0 0 22px}
+.panel{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:16px}
+.row{display:grid;grid-template-columns:1.25fr 1fr;gap:16px}
+.view{animation:in .28s ease}@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
+.btn{background:var(--bl);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-weight:700;transition:transform .12s,filter .15s}
+.btn:hover{filter:brightness(1.1)}.btn:active{transform:scale(.97)}
+.btn.g{background:var(--sf);color:var(--bl);border:1px solid var(--bd)}.btn[disabled]{opacity:.45;cursor:not-allowed}
+.tag{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700;background:var(--bl2);color:var(--bl)}
+.ok{background:var(--okb);color:var(--ok)}.wn{background:var(--wnb);color:var(--wn)}.er{background:var(--erb);color:var(--er)}
+table{width:100%;border-collapse:collapse}th{text-align:left;color:var(--mu);font-weight:600;font-size:12.5px;padding:6px 8px;border-bottom:1px solid var(--bd)}
+td{padding:10px 8px;border-bottom:1px solid var(--bd);vertical-align:top}tr:last-child td{border:0}
+.bar{height:9px;background:var(--bl2);border-radius:9px;overflow:hidden}.bar b{display:block;height:100%;background:var(--bl);border-radius:9px;transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.cond{display:flex;gap:10px;align-items:flex-start;padding:7px 0}.dot{flex:none;width:20px;height:20px;border-radius:50%;border:2px solid var(--bd);display:grid;place-items:center;font-size:11px;color:#fff;transition:all .3s}
+.cond.y .dot{background:var(--ok);border-color:var(--ok)}
+.done{background:var(--bl);color:#fff;border-radius:12px;padding:18px 20px;margin-bottom:16px;animation:pop .5s cubic-bezier(.2,1.4,.4,1)}
+.done b{font-size:19px;letter-spacing:.02em}@keyframes pop{from{transform:scale(.96);opacity:0}}
+.big{font-size:30px;font-weight:800}.mu{color:var(--mu)}.sm{font-size:12.5px}
+.tl{border-left:2px solid var(--bd);margin-left:6px;padding-left:16px}.tl div{position:relative;margin-bottom:14px}
+.tl div:before{content:"";position:absolute;left:-23px;top:5px;width:10px;height:10px;border-radius:50%;background:var(--bl)}
+.chat{height:300px;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:4px}
+.m{max-width:82%;padding:9px 12px;border-radius:12px;background:var(--bl2)}.m.u{align-self:flex-end;background:var(--bl);color:#fff}
+.note{background:var(--bl2);border-radius:8px;padding:8px 12px;font-size:12.5px;color:var(--mu);margin-bottom:14px}
+.toast{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--tx);color:var(--bg);padding:10px 14px;border-radius:10px;animation:in .25s}
+@media(max-width:800px){.app{grid-template-columns:1fr}aside{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center}nav{display:flex;flex-wrap:wrap}.role{margin:0}main{padding:20px 16px}.row{grid-template-columns:1fr}.tw{overflow-x:auto}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></head><body>
+<div class="app"><aside><div class="logo"><i>∞</i>InternLoop AI</div><nav id="nav"></nav>
+<div class="role"><label for="rs">Viewing as</label><select id="rs"><option value="admin">Admin (coordinator)</option><option value="mentor">Mentor</option><option value="intern">Intern (Asha Menon)</option></select></div></aside>
+<main id="v"></main></div>
+<script>
+const ROLE_NAV={admin:['dash','tasks','import','integ','auto','meet'],mentor:['dash','tasks','review','auto','meet'],intern:['dash','tasks','review','tutor','meet']};
+const LBL={dash:'Project status',tasks:'Tasks',review:'Code review',import:'Student import',tutor:'AI tutor',integ:'Integrations',auto:'Automation timeline',meet:'Meetings'};
+const S={role:'admin',view:'dash',toast:'',
+tasks:[{id:'T-1',t:'Enrollment REST API',m:1,s:'Changes Requested'},{id:'T-2',t:'Unit tests for enrollment limits',m:1,s:'In Progress'},{id:'T-3',t:'API README and setup guide',m:1,s:'Approved'},{id:'T-4',t:'Optional: CSV export endpoint',m:0,s:'Assigned'}],
+findings:[{id:'F-1',t:'Missing input validation on POST /enroll',sev:'High',file:'app/routes/enroll.py',line:'L42–L51',ev:'Request body is passed to the repository without type or range checks.',st:'Open',tid:'T-1',ask:'Why does the reviewer say my endpoint has no validation?'},
+{id:'F-2',t:'Unknown student ID returns 500',sev:'Medium',file:'app/services/enroll.py',line:'L18',ev:'Lookup result is dereferenced without a None check.',st:'Open',tid:'T-1'}],
+tests:[{n:'test_enroll_valid',pass:1},{n:'test_enrollment_limits',pass:0}],
+docs:{name:'README.md',acc:1},final:0,attempt:1,
+hist:[{a:1,c:'a91f3c2',txt:'Reviewed PR #12. 2 findings opened (1 High, 1 Medium). Required test missing.'}],
+audit:['Project created by admin','T-3 approved by mentor'],wasDone:0,students:[],imp:null,meet:null};
+const $=s=>document.querySelector(s);
+function evalProj(){
+ const mt=S.tasks.filter(t=>t.m),ap=mt.filter(t=>t.s==='Approved');
+ const openF=S.findings.filter(f=>f.st==='Open'||f.st==='Reopened'),ft=S.findings.length;
+ const failT=S.tests.filter(t=>!t.pass);
+ const base=[
+ {k:'Every mandatory task is approved ('+ap.length+'/'+mt.length+')',ok:ap.length===mt.length},
+ {k:'Every mandatory finding is resolved or accepted ('+openF.length+' open)',ok:!openF.length},
+ {k:'Required tests pass ('+(S.tests.length-failT.length)+'/'+S.tests.length+')',ok:!failT.length},
+ {k:'Required documentation accepted ('+S.docs.name+')',ok:!!S.docs.acc}];
+ const fin={k:'Mentor final approval recorded',ok:!!S.final};
+ const all=[...base,fin],units=mt.length+ft+S.tests.length+1+1;
+ const got=ap.length+(ft-openF.length)+(S.tests.length-failT.length)+(S.docs.acc?1:0)+(S.final?1:0);
+ const done=all.every(c=>c.ok),pre=base.every(c=>c.ok);
+ return{all,done,pct:Math.round(got/units*100),status:done?'Completed':pre?'Awaiting Final Approval':ap.length||S.hist.length?'Action Required':'In Progress',openF,mt,ap};}
+function sync(){const e=evalProj();
+ if(e.done&&!S.wasDone){S.wasDone=1;S.completedAt=new Date().toDateString();S.audit.unshift('PROJECT COMPLETED — all 5 conditions met (policy v1). Notifications queued (preview, not sent).');}
+ else if(!e.done&&S.wasDone){S.wasDone=0;S.audit.unshift('Completion revoked — a mandatory condition became invalid (reopening policy).');toast('Completion revoked: a requirement is no longer met');}
+ return e;}
+function toast(m){S.toast=m;setTimeout(()=>{S.toast='';draw()},2600)}
+function can(a){return({admin:['docs','import'],mentor:['approve','reopen','final','docs','accept'],intern:['submit','resubmit']}[S.role]||[]).includes(a)}
+const stc=s=>({Approved:'ok','Changes Requested':'er',Submitted:'wn','In Progress':'wn'}[s]||'');
+function setTask(id,s){const t=S.tasks.find(x=>x.id===id);const ok={'Assigned':['In Progress','Submitted'],'In Progress':['Submitted'],'Submitted':['Approved','Changes Requested'],'Changes Requested':['Submitted'],'Approved':['Changes Requested']};
+ if(!ok[t.s]||!ok[t.s].includes(s))return toast('Invalid transition: '+t.s+' → '+s);
+ if(s==='Approved'&&S.findings.some(f=>f.tid===id&&(f.st==='Open'||f.st==='Reopened')))return toast('Cannot approve '+id+' while mandatory findings are open');
+ if(s==='Submitted'&&id==='T-2'){S.tests.find(x=>x.n==='test_enrollment_limits').pass=1;S.audit.unshift('Demo test run: test_enrollment_limits passed');}
+ t.s=s;S.audit.unshift(id+' → '+s+' ('+S.role+')');draw();}
+function resubmit(){const o=S.findings.filter(f=>f.st==='Open');if(!o.length)return toast('No open findings to address');
+ S.attempt++;const f=o[0],c=Math.random().toString(16).slice(2,9);f.st='Resolved';f.res='Attempt '+S.attempt+' @ '+c+': changed lines verified in demo diff';
+ S.hist.push({a:S.attempt,c,txt:f.id+' resolved with evidence from the changed lines. '+(o.length>1?o.length-1+' finding still open.':'No open findings; ready for mentor review.')});
+ if(o.length===1)S.tasks.find(t=>t.id==='T-1').s='Submitted';
+ S.audit.unshift('Attempt '+S.attempt+' reviewed (demo reviewer) — '+f.id+' resolved');draw();}
+function draw(){
+ const e=sync();$('#nav').innerHTML=ROLE_NAV[S.role].map(k=>`<button class="${k===S.view?'on':''}" data-v="${k}">${LBL[k]}</button>`).join('');
+ const fn={dash,tasks,review,import:imp,tutor,integ,auto,meet}[S.view];$('#v').innerHTML='<div class="view">'+fn(e)+'</div>'+(S.toast?`<div class="toast" role="status">${S.toast}</div>`:'');bind();}
+function dash(e){
+ return `<h1>Campus Portal Backend</h1><p class="sub">Spring batch · Mentor: Dr. R. Iyer · Intern: Asha Menon</p>
+ ${e.done?`<div class="done" role="status"><b>PROJECT COMPLETED</b><div class="sm">Completed ${S.completedAt} · ${e.ap.length}/${e.mt.length} mandatory tasks approved · Final review: approved · Report ready</div></div>`:''}
+ <div class="row"><div class="panel"><h2>Completion requirements</h2>
+ ${e.all.map(c=>`<div class="cond ${c.ok?'y':''}"><span class="dot">${c.ok?'✓':''}</span><span>${c.k}</span></div>`).join('')}
+ <p class="sm mu" style="margin-top:10px">Evaluated by one backend-style function; every condition above must be met. Optional tasks are ignored.</p></div>
+ <div><div class="panel"><span class="tag ${e.done?'ok':'wn'}">${e.status}</span><div class="big" style="margin:8px 0 6px">${e.pct}%</div><div class="bar" role="progressbar" aria-valuenow="${e.pct}"><b style="width:${e.pct}%"></b></div>
+ <p class="sm mu">Computed from requirement counts. A rounded 100% never shows “completed” unless all conditions hold.</p>
+ ${can('final')?`<button class="btn" id="fin" ${S.final?'disabled':''}>${S.final?'Final approval recorded':'Record final approval'}</button>`:''}
+ ${can('docs')&&S.role==='mentor'?` <button class="btn g" id="doc">${S.docs.acc?'Revoke README acceptance':'Accept README'}</button>`:''}</div>
+ <div class="panel"><h2>Audit log</h2>${S.audit.slice(0,5).map(a=>`<div class="sm" style="padding:3px 0">${a}</div>`).join('')}</div></div></div>`;}
+function tasks(){const m=S.role;
+ return `<h1>Tasks</h1><p class="sub">States follow controlled transitions. Invalid moves are rejected.</p><div class="panel tw"><table><tr><th>Task</th><th>Type</th><th>Status</th><th></th></tr>
+ ${S.tasks.map(t=>`<tr><td><b>${t.id}</b> ${t.t}</td><td class="mu">${t.m?'Mandatory':'Optional'}</td><td><span class="tag ${stc(t.s)}">${t.s}</span></td><td>
+ ${m==='intern'&&['Assigned','In Progress','Changes Requested'].includes(t.s)&&t.id!=='T-1'?`<button class="btn g" data-t="${t.id}" data-s="Submitted">Submit work</button>`:''}
+ ${m==='intern'&&t.id==='T-1'&&t.s==='Changes Requested'?`<button class="btn g" data-go="review">Fix findings</button>`:''}
+ ${m==='mentor'&&t.s==='Submitted'?`<button class="btn" data-t="${t.id}" data-s="Approved">Approve</button> <button class="btn g" data-t="${t.id}" data-s="Changes Requested">Request changes</button>`:''}
+ ${m==='mentor'&&t.s==='Approved'?`<button class="btn g" data-t="${t.id}" data-s="Changes Requested">Reopen</button>`:''}</td></tr>`).join('')}</table></div>
+ ${m==='admin'?'<div class="note">Admins view progress here. Approvals and reopening belong to mentors.</div>':''}`;}
+function review(){const t1=S.tasks[0];
+ return `<h1>Code review · T-1</h1><p class="sub">PR #12 · acme/campus-portal · attempt ${S.attempt}</p>
+ <div class="note">Demo mode: no GitHub or LLM call is made. Findings are seeded; each resubmission simulates a reviewer comparing commits. Tests shown were not run on a real server.</div>
+ <div class="row"><div class="panel"><h2>Findings</h2>${S.findings.map(f=>`<div style="padding:10px 0;border-bottom:1px solid var(--bd)"><span class="tag ${f.sev==='High'?'er':'wn'}">${f.sev}</span> <span class="tag ${f.st==='Resolved'?'ok':''}">${f.st}</span>
+ <div style="font-weight:700;margin:5px 0 2px">${f.id} ${f.t}</div><div class="sm mu">${f.file} ${f.line} — ${f.ev}</div>${f.res?`<div class="sm" style="color:var(--ok)">Resolved: ${f.res}</div>`:''}
+ ${S.role==='mentor'&&f.st==='Open'?`<button class="btn g" style="margin-top:6px" data-acc="${f.id}">Accept risk (recorded)</button>`:''}</div>`).join('')}
+ ${can('resubmit')?`<button class="btn" id="rs2" style="margin-top:12px" ${t1.s!=='Changes Requested'?'disabled':''}>Resubmit new commit</button>`:''}</div>
+ <div class="panel"><h2>Revision timeline</h2><div class="tl">${S.hist.map(h=>`<div><b>Attempt ${h.a}</b> <span class="mu sm">${h.c}</span><div class="sm">${h.txt}</div></div>`).join('')}</div></div></div>`;}
+function imp(){const r=S.imp;
+ return `<h1>Student import</h1><p class="sub">Paste CSV rows (header: id,name,email,github). Excel parsing needs the backend; this demo reads CSV.</p>
+ <div class="panel"><textarea id="csv" rows="6" aria-label="CSV data">id,name,email,github
+S101,Asha Menon,asha@college.edu,asha-m
+S102,Ravi Kumar,ravi@college
+S101,Duplicate Asha,asha2@college.edu,asha2
+S103,Meera Das,meera@college.edu,meera-d</textarea><p><button class="btn" id="chk">Validate and preview</button></p></div>
+ ${r?`<div class="panel tw"><h2>${r.ok.length} valid · ${r.bad.length} rejected</h2><table><tr><th>Row</th><th>Student</th><th>Result</th></tr>${r.rows.map(x=>`<tr><td>${x.n}</td><td>${x.name||'—'}</td><td>${x.err?`<span class="tag er">${x.err}</span>`:'<span class="tag ok">Valid</span>'}</td></tr>`).join('')}</table>
+ <p><button class="btn" id="doimp" ${r.ok.length?'':'disabled'}>Send ${r.ok.length} invitations</button></p>${S.students.length?`<p class="sm mu">Pending invitations: ${S.students.map(s=>s.email).join(', ')} (email preview only, not sent)</p>`:''}</div>`:''}`;}
+const chat=[{u:0,t:'I’m an AI assistant, not a human mentor. Pick a finding and ask me about it.'}];
+function tutor(){return `<h1>AI tutor</h1><p class="sub">Typed chat always works. Voice needs browser support.</p><div class="note">Demo tutor with scripted guidance. Connect an LLM provider for open-ended answers.</div>
+ <div class="panel"><div class="chat" id="chat" aria-live="polite">${chat.map(m=>`<div class="m ${m.u?'u':''}">${m.t}</div>`).join('')}</div>
+ <div style="display:flex;gap:8px;margin-top:10px"><input id="q" placeholder="Ask about F-1 or F-2" aria-label="Message"><button class="btn" id="send">Send</button><button class="btn g" id="mic">Speak</button></div></div>`;}
+function reply(q){const l=q.toLowerCase();
+ if(/f-?2|none|404|unknown|500/.test(l))return 'Look at app/services/enroll.py line 18. What does the lookup return when no student matches? Try tracing that value forward — what happens when you use it?';
+ if(/valid|f-?1|endpoint/.test(l))return 'The endpoint passes the request body along without checking it. Before reading further: if someone sends an empty student ID, what should the API answer? Which status code fits?';
+ return 'I can help with F-1 (validation) or F-2 (missing record). Which one do you want to walk through?';}
+const INTEG=[['GitHub App','Needs the app ID, private key and webhook secret on the server','Contents (read), Pull requests (write), Checks (read)'],['Google OAuth','Needs an OAuth client and redirect URI in Google Cloud','Sign-in and consent screen'],['Gmail','Needs Google OAuth first','gmail.send only'],['Google Calendar','Needs Google OAuth first','calendar.events, freebusy'],['Google Meet conference creation','Needs Calendar; link shows only after Google confirms it','Via Calendar conferenceData'],['Google Sheets / Drive','Optional; enable only to import from Sheets','spreadsheets.readonly'],['AI reasoning provider','Needs a provider key held on the server','Structured review output'],['Real-time speech provider','Needs OpenAI Realtime or Gemini Live key; server issues short-lived tokens','Voice session tokens'],['Background worker and database','Needs PostgreSQL, Redis and Celery','All persistent state']];
+function integ(){const sp='speechSynthesis' in window;
+ return `<h1>Integration control center</h1><p class="sub">Real status only. Nothing here is connected in this demo.</p><div class="panel tw"><table><tr><th>Service</th><th>Status</th><th>What it needs</th><th></th></tr>${INTEG.map((r,i)=>{const b=i===7&&sp?['Browser fallback active','wn']:['Configuration Required','er'];return `<tr><td><b>${r[0]}</b><div class="sm mu">Scopes: ${r[2]}</div></td><td><span class="tag ${b[1]}">${b[0]}</span></td><td class="sm">${r[1]}</td><td><button class="btn g" data-test="${r[0]}">Test connection</button></td></tr>`}).join('')}</table></div><div class="note">Tokens, keys and secrets never reach the browser. Production uses server-side OAuth with least-privilege scopes.</div>`;}
+function auto(){const ag=a=>/COMPLETED|Completion|Final/.test(a)?'Completion Auditor':/test run/i.test(a)?'Test and Verification':/Attempt|resolved|risk/.test(a)?'Code Review / Reconciliation':/invitation/.test(a)?'Communication':'Workflow Orchestrator';
+ return `<h1>Automation timeline</h1><p class="sub">Which event triggered which agent, and the outcome.</p><div class="panel tw"><table><tr><th>Trace</th><th>Event</th><th>Agent</th><th>Result</th></tr>${S.audit.map((a,i)=>`<tr><td class="sm mu">tr-${String(S.audit.length-i).padStart(4,'0')}</td><td>${a}</td><td class="sm">${ag(a)}</td><td><span class="tag">Simulated</span></td></tr>`).join('')}</table></div><div class="note">Emails and review comments are logged as previews. Nothing is sent to Gmail or GitHub in demo mode.</div>`;}
+function meet(){const m=S.meet,n=S.attempt,esc=n>=3;
+ return `<h1>Mentor meetings</h1><p class="sub">Meetings are for real blockers, not every finding.</p><div class="panel"><h2>Escalation policy</h2><p class="sm">Suggest a meeting when the intern asks, a mentor asks, or ${3} review attempts pass without resolution. Current attempts: <b>${n}</b> ${esc?'<span class="tag wn">Threshold reached</span>':'<span class="tag">Below threshold</span>'}</p></div>
+ <div class="panel"><h2>Session</h2>${m?`<span class="tag ${m.st==='Scheduled (manual)'?'ok':'wn'}">${m.st}</span><p class="sm">${m.note}</p>`:'<p class="mu">No meeting requested.</p>'}
+ ${S.role==='intern'&&!m?'<button class="btn" id="mreq">Request a mentor meeting</button>':''}
+ ${S.role==='mentor'&&m&&m.st==='Requested'?'<button class="btn" id="mset">Confirm manual session</button>':''}</div><div class="note">Google Calendar is not connected, so no event or Meet link can be created. A confirmed session here is a manual arrangement with no join link.</div>`;}
+function bind(){
+ $('#nav').onclick=e=>{const v=e.target.dataset.v;if(v){S.view=v;draw()}};
+ document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>setTask(b.dataset.t,b.dataset.s));
+ document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{S.view=b.dataset.go;draw()});
+ document.querySelectorAll('[data-acc]').forEach(b=>b.onclick=()=>{const f=S.findings.find(x=>x.id===b.dataset.acc);f.st='Accepted Risk';S.audit.unshift(f.id+' accepted as risk by mentor');draw()});
+ const g=i=>document.getElementById(i);
+ if(g('fin'))g('fin').onclick=()=>{const e=evalProj();if(!e.all.slice(0,4).every(c=>c.ok))return toast('Finish the other requirements first');S.final=1;S.audit.unshift('Final approval recorded by mentor');draw()};
+ if(g('doc'))g('doc').onclick=()=>{S.docs.acc=S.docs.acc?0:1;S.audit.unshift('README acceptance '+(S.docs.acc?'recorded':'revoked'));draw()};
+ if(g('rs2'))g('rs2').onclick=resubmit;
+ document.querySelectorAll('[data-test]').forEach(b=>b.onclick=()=>toast(b.dataset.test+': no credentials configured, nothing to test'));
+ if(g('mreq'))g('mreq').onclick=()=>{if(S.meet)return toast('A meeting request already exists');S.meet={st:'Requested',note:'Request recorded and mentor notified (email preview only). Not booked yet.'};S.audit.unshift('Meeting requested by intern');draw()};
+ if(g('mset'))g('mset').onclick=()=>{S.meet={st:'Scheduled (manual)',note:'Mentor confirmed a session; time and link to be shared directly. No Calendar event or Meet link exists.'};S.audit.unshift('Meeting scheduled manually by mentor (no Calendar event)');draw()};
+ if(g('chk'))g('chk').onclick=()=>{const L=g('csv').value.trim().split('\n').slice(1),ids=new Set(),ems=new Set(),rows=[];
+  L.forEach((ln,i)=>{const[id,name,email,gh]=ln.split(',').map(x=>(x||'').trim());let err='';
+   if(!id||!name||!email)err='Missing required field';else if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email))err='Invalid email';else if(ids.has(id))err='Duplicate student ID';else if(ems.has(email.toLowerCase()))err='Duplicate email';
+   if(!err){ids.add(id);ems.add(email.toLowerCase())}rows.push({n:i+2,name,email,err})});
+  S.imp={rows,ok:rows.filter(r=>!r.err),bad:rows.filter(r=>r.err)};draw()};
+ if(g('doimp'))g('doimp').onclick=()=>{S.students=S.imp.ok;S.audit.unshift(S.imp.ok.length+' invitations created (pending accounts)');draw()};
+ if(g('send')){const go=()=>{const q=g('q').value.trim();if(!q)return;const a=reply(q);chat.push({u:1,t:q.replace(/</g,'&lt;')},{u:0,t:a});
+  if('speechSynthesis' in window&&S.speak)speechSynthesis.speak(new SpeechSynthesisUtterance(a));draw();g('chat').scrollTop=1e5};
+  g('send').onclick=go;g('q').onkeydown=e=>{if(e.key==='Enter')go()};
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  g('mic').onclick=()=>{if(!SR)return toast('Speech input is unavailable here; use typing');S.speak=1;const r=new SR();g('mic').textContent='Listening…';r.onresult=ev=>{g('q').value=ev.results[0][0].transcript;go()};r.onend=()=>{g('mic').textContent='Speak'};r.start()}}}
+$('#rs').onchange=e=>{S.role=e.target.value;if(!ROLE_NAV[S.role].includes(S.view))S.view='dash';draw()};
+draw();
+</script></body></html>
